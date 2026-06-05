@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Episode Explorer 📺</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky: #4FC3F7;
+    --sun: #FFD54F;
+    --grass: #81C784;
+    --coral: #FF8A65;
+    --lavender: #CE93D8;
+    --cloud: #ffffff;
+    --deep: #1a3a5c;
+    --card-bg: rgba(255,255,255,0.92);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    min-height: 100vh;
+    background: linear-gradient(180deg, #87CEEB 0%, #b8e4f7 40%, #d4f0b0 100%);
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  .cloud {
+    position: fixed;
+    background: white;
+    border-radius: 50px;
+    opacity: 0.85;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .cloud::before, .cloud::after {
+    content: '';
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+  }
+  .c1 { width: 140px; height: 45px; top: 8%; left: -20px; animation: drift 30s linear infinite; }
+  .c1::before { width: 70px; height: 70px; top: -35px; left: 20px; }
+  .c1::after  { width: 50px; height: 50px; top: -28px; left: 60px; }
+  .c2 { width: 100px; height: 35px; top: 20%; left: 55%; animation: drift 45s linear infinite 10s; }
+  .c2::before { width: 55px; height: 55px; top: -28px; left: 15px; }
+  .c2::after  { width: 40px; height: 40px; top: -22px; left: 45px; }
+  .c3 { width: 120px; height: 38px; top: 38%; left: 80%; animation: drift 38s linear infinite 5s; }
+  .c3::before { width: 60px; height: 60px; top: -30px; left: 18px; }
+  .c3::after  { width: 45px; height: 45px; top: -25px; left: 55px; }
+  @keyframes drift { from { transform: translateX(0); } to { transform: translateX(calc(120vw + 200px)); } }
+
+  .floater {
+    position: fixed;
+    pointer-events: none;
+    animation: float-up 20s linear infinite;
+    opacity: 0;
+    z-index: 0;
+    font-size: 1.8rem;
+  }
+  @keyframes float-up {
+    0%   { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+    5%   { opacity: 0.5; }
+    90%  { opacity: 0.3; }
+    100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 30px 20px 60px;
+  }
+
+  header { text-align: center; margin-bottom: 36px; }
+  .logo-emoji { font-size: 3.5rem; display: block; animation: bounce 2s ease-in-out infinite; }
+  @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(2.2rem, 6vw, 3.4rem);
+    color: var(--deep);
+    text-shadow: 3px 3px 0 var(--sun), 6px 6px 0 rgba(0,0,0,0.07);
+    line-height: 1.1;
+    margin-top: 6px;
+  }
+  .subtitle { font-size: 1.05rem; color: #2c6094; font-weight: 700; margin-top: 8px; }
+
+  .search-card {
+    background: var(--card-bg);
+    border-radius: 28px;
+    padding: 28px 28px 24px;
+    box-shadow: 0 8px 32px rgba(30,80,140,0.13), 0 2px 0 rgba(255,255,255,0.7) inset;
+    margin-bottom: 28px;
+    border: 2px solid rgba(255,255,255,0.8);
+  }
+
+  .section-label {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.1rem;
+    color: var(--deep);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .shows-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 22px; }
+
+  .show-pill {
+    cursor: pointer;
+    border: none;
+    border-radius: 40px;
+    padding: 8px 16px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 800;
+    transition: all 0.18s ease;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.15);
+    user-select: none;
+  }
+  .show-pill:active { transform: translateY(2px); box-shadow: 0 1px 0 rgba(0,0,0,0.1); }
+  .show-pill.unselected { background: #e8f0f8; color: #5a7a9a; box-shadow: 0 3px 0 #b8cce0; }
+  .show-pill.selected   { transform: translateY(-2px); }
+
+  .pill-bluey.selected     { background: #4FC3F7; color: white; box-shadow: 0 4px 0 #1e8ab5; }
+  .pill-sesame.selected    { background: #FF7043; color: white; box-shadow: 0 4px 0 #bf3c1a; }
+  .pill-trash.selected     { background: #78909C; color: white; box-shadow: 0 4px 0 #455A64; }
+  .pill-paw.selected       { background: #EF5350; color: white; box-shadow: 0 4px 0 #b71c1c; }
+  .pill-cocomelon.selected { background: #AB47BC; color: white; box-shadow: 0 4px 0 #7b1fa2; }
+  .pill-peppa.selected     { background: #EC407A; color: white; box-shadow: 0 4px 0 #ad1457; }
+  .pill-curious.selected   { background: #FFA726; color: white; box-shadow: 0 4px 0 #e65100; }
+  .pill-daniel.selected    { background: #66BB6A; color: white; box-shadow: 0 4px 0 #2e7d32; }
+  .pill-dora.selected      { background: #FFCA28; color: #5d4200; box-shadow: 0 4px 0 #c79a00; }
+  .pill-octonauts.selected { background: #26C6DA; color: white; box-shadow: 0 4px 0 #00838f; }
+  .pill-custom.selected    { background: var(--deep); color: white; box-shadow: 0 4px 0 #0a1e30; }
+
+  .select-all-btn {
+    cursor: pointer;
+    background: none;
+    border: 2px dashed #aac4dc;
+    border-radius: 40px;
+    padding: 7px 14px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #5a7a9a;
+    transition: all 0.18s;
+  }
+  .select-all-btn:hover { border-color: var(--sky); color: var(--deep); }
+
+  .custom-show-row { display: flex; gap: 10px; margin-bottom: 22px; align-items: center; }
+  .custom-show-row input {
+    flex: 1;
+    border: 2px solid #cde3f5;
+    border-radius: 16px;
+    padding: 9px 16px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--deep);
+    outline: none;
+    background: #f4faff;
+    transition: border 0.18s;
+  }
+  .custom-show-row input:focus { border-color: var(--sky); }
+  .add-show-btn {
+    background: var(--deep);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    padding: 9px 18px;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 0.9rem;
+    cursor: pointer;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+    transition: background 0.18s;
+  }
+  .add-show-btn:hover { background: #2a5a8c; }
+
+  .search-row { display: flex; gap: 12px; align-items: stretch; }
+  .keyword-input {
+    flex: 1;
+    border: 3px solid #cde3f5;
+    border-radius: 20px;
+    padding: 14px 20px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--deep);
+    outline: none;
+    background: #f4faff;
+    transition: border 0.2s, box-shadow 0.2s;
+  }
+  .keyword-input:focus { border-color: var(--sky); box-shadow: 0 0 0 4px rgba(79,195,247,0.18); }
+  .keyword-input::placeholder { color: #9bbdd4; font-weight: 600; }
+
+  .search-btn {
+    background: linear-gradient(135deg, #FFD54F 0%, #FFB300 100%);
+    color: var(--deep);
+    border: none;
+    border-radius: 20px;
+    padding: 14px 26px;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #e67e00;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.18s;
+  }
+  .search-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #e67e00; }
+  .search-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #e67e00; }
+  .search-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+  .suggestions { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .suggest-label { font-size: 0.82rem; color: #7a9db8; font-weight: 700; }
+  .suggest-chip {
+    cursor: pointer;
+    background: rgba(79,195,247,0.12);
+    border: 1.5px solid rgba(79,195,247,0.4);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #2c6094;
+    transition: all 0.15s;
+  }
+  .suggest-chip:hover { background: rgba(79,195,247,0.25); border-color: var(--sky); }
+
+  .results-header {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.4rem;
+    color: var(--deep);
+    margin-bottom: 16px;
+  }
+
+  .loading-wrap { text-align: center; padding: 50px 20px; }
+  .loading-spinner { font-size: 3rem; display: inline-block; animation: spin-bounce 0.8s ease-in-out infinite alternate; }
+  @keyframes spin-bounce { from { transform: rotate(-15deg) scale(0.9); } to { transform: rotate(15deg) scale(1.1); } }
+  .loading-text { font-family: 'Fredoka One', cursive; font-size: 1.2rem; color: #2c6094; margin-top: 12px; }
+
+  .episodes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+
+  .ep-card {
+    background: var(--card-bg);
+    border-radius: 22px;
+    padding: 20px;
+    box-shadow: 0 6px 20px rgba(30,80,140,0.10);
+    border: 2px solid rgba(255,255,255,0.9);
+    transition: transform 0.2s, box-shadow 0.2s;
+    animation: card-in 0.4s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+  .ep-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 5px;
+    border-radius: 22px 22px 0 0;
+  }
+  @keyframes card-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .ep-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(30,80,140,0.16); }
+
+  .ep-show { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; opacity: 0.75; }
+  .ep-title { font-family: 'Fredoka One', cursive; font-size: 1.15rem; color: var(--deep); line-height: 1.25; margin-bottom: 6px; }
+  .ep-meta { font-size: 0.8rem; color: #7a9db8; font-weight: 700; margin-bottom: 10px; }
+  .ep-desc { font-size: 0.88rem; color: #3a5a78; line-height: 1.55; font-weight: 600; }
+  .ep-tags { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .ep-tag { background: rgba(79,195,247,0.15); border: 1px solid rgba(79,195,247,0.35); border-radius: 10px; padding: 2px 9px; font-size: 0.75rem; font-weight: 700; color: #1e6a8a; }
+
+  .show-bluey .ep-card::before    { background: #4FC3F7; }
+  .show-sesame .ep-card::before   { background: #FF7043; }
+  .show-trash .ep-card::before    { background: #78909C; }
+  .show-paw .ep-card::before      { background: #EF5350; }
+  .show-cocomelon .ep-card::before{ background: #AB47BC; }
+  .show-peppa .ep-card::before    { background: #EC407A; }
+  .show-curious .ep-card::before  { background: #FFA726; }
+  .show-daniel .ep-card::before   { background: #66BB6A; }
+  .show-dora .ep-card::before     { background: #FFCA28; }
+  .show-octonauts .ep-card::before{ background: #26C6DA; }
+  .show-custom .ep-card::before   { background: var(--deep); }
+
+  .show-bluey .ep-show     { color: #0a7aad; }
+  .show-sesame .ep-show    { color: #c94020; }
+  .show-trash .ep-show     { color: #546E7A; }
+  .show-paw .ep-show       { color: #c62828; }
+  .show-cocomelon .ep-show { color: #7b1fa2; }
+  .show-peppa .ep-show     { color: #ad1457; }
+  .show-curious .ep-show   { color: #e65100; }
+  .show-daniel .ep-show    { color: #2e7d32; }
+  .show-dora .ep-show      { color: #c79a00; }
+  .show-octonauts .ep-show { color: #00838f; }
+
+  .no-results { text-align: center; padding: 40px 20px; background: var(--card-bg); border-radius: 22px; border: 2px solid rgba(255,255,255,0.9); }
+  .no-results .emoji { font-size: 3rem; }
+  .no-results p { font-family: 'Fredoka One', cursive; font-size: 1.2rem; color: var(--deep); margin-top: 10px; }
+  .no-results small { color: #7a9db8; font-weight: 600; display: block; margin-top: 6px; }
+
+  .error-box { background: #fff3f3; border: 2px solid #ffb3b3; border-radius: 16px; padding: 18px 22px; color: #b02020; font-weight: 700; font-size: 0.95rem; }
+
+  footer { text-align: center; margin-top: 40px; font-size: 0.82rem; color: #5a80a0; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="cloud c1"></div>
+<div class="cloud c2"></div>
+<div class="cloud c3"></div>
+<div class="floater" style="left:5%;animation-delay:0s">🌸</div>
+<div class="floater" style="left:20%;animation-delay:5s">⭐</div>
+<div class="floater" style="left:45%;animation-delay:10s">🦋</div>
+<div class="floater" style="left:70%;animation-delay:3s">🌈</div>
+<div class="floater" style="left:88%;animation-delay:14s">🎈</div>
+
+<div class="wrapper">
+  <header>
+    <span class="logo-emoji">📺</span>
+    <h1>Episode Explorer</h1>
+    <p class="subtitle">Find the perfect episode to watch together! 🌟</p>
+  </header>
+
+  <div class="search-card">
+    <div class="section-label">📺 Pick a show (or a few!)</div>
+    <div class="shows-grid" id="showsGrid"></div>
+
+    <div class="custom-show-row">
+      <input type="text" id="customShowInput" placeholder="Add another show…" maxlength="50" />
+      <button class="add-show-btn" onclick="addCustomShow()">+ Add</button>
+    </div>
+
+    <div class="section-label">🔍 What do you want to learn about?</div>
+    <div class="search-row">
+      <input type="text" class="keyword-input" id="keywordInput"
+             placeholder="e.g. sharing, bugs, firefighters…"
+             maxlength="120"
+             onkeydown="if(event.key==='Enter') search()" />
+      <button class="search-btn" id="searchBtn" onclick="search()">
+        🔎 Find Episodes
+      </button>
+    </div>
+
+    <div class="suggestions">
+      <span class="suggest-label">Try:</span>
+      <span class="suggest-chip" onclick="quickSearch('sharing')">sharing</span>
+      <span class="suggest-chip" onclick="quickSearch('bugs & insects')">bugs & insects</span>
+      <span class="suggest-chip" onclick="quickSearch('firefighters')">firefighters</span>
+      <span class="suggest-chip" onclick="quickSearch('shapes')">shapes</span>
+      <span class="suggest-chip" onclick="quickSearch('kittens')">kittens</span>
+      <span class="suggest-chip" onclick="quickSearch('feelings')">feelings</span>
+      <span class="suggest-chip" onclick="quickSearch('ocean animals')">ocean animals</span>
+      <span class="suggest-chip" onclick="quickSearch('being kind')">being kind</span>
+    </div>
+  </div>
+
+  <div id="resultsArea"></div>
+
+  <footer>Made with ❤️ for curious little minds &amp; the grown-ups who love them</footer>
+</div>
+
+<script>
+const SHOWS = [
+  { id: 'bluey',     label: '🦘 Bluey',            cls: 'pill-bluey',     showCls: 'show-bluey' },
+  { id: 'sesame',    label: '🍪 Sesame Street',     cls: 'pill-sesame',    showCls: 'show-sesame' },
+  { id: 'trash',     label: '🚛 Trash Truck',        cls: 'pill-trash',     showCls: 'show-trash' },
+  { id: 'paw',       label: '🐾 Paw Patrol',         cls: 'pill-paw',       showCls: 'show-paw' },
+  { id: 'cocomelon', label: '🍉 CoComelon',          cls: 'pill-cocomelon', showCls: 'show-cocomelon' },
+  { id: 'peppa',     label: '🐷 Peppa Pig',          cls: 'pill-peppa',     showCls: 'show-peppa' },
+  { id: 'curious',   label: '🐵 Curious George',     cls: 'pill-curious',   showCls: 'show-curious' },
+  { id: 'daniel',    label: '🐯 Daniel Tiger',       cls: 'pill-daniel',    showCls: 'show-daniel' },
+  { id: 'dora',      label: '🎒 Dora the Explorer',  cls: 'pill-dora',      showCls: 'show-dora' },
+  { id: 'octonauts', label: '🐙 Octonauts',          cls: 'pill-octonauts', showCls: 'show-octonauts' },
+];
+
+let selectedShows = new Set(['bluey', 'sesame', 'trash']);
+let customShows = [];
+
+function buildShowPills() {
+  const grid = document.getElementById('showsGrid');
+  grid.innerHTML = '';
+  const allShows = [...SHOWS, ...customShows];
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'select-all-btn';
+  allBtn.textContent = selectedShows.size === allShows.length ? '✗ Clear all' : '✓ Select all';
+  allBtn.onclick = toggleAll;
+  grid.appendChild(allBtn);
+
+  allShows.forEach(show => {
+    const pill = document.createElement('button');
+    const sel = selectedShows.has(show.id);
+    pill.className = `show-pill ${show.cls} ${sel ? 'selected' : 'unselected'}`;
+    pill.textContent = show.label;
+    pill.onclick = () => toggleShow(show.id);
+    grid.appendChild(pill);
+  });
+}
+
+function toggleShow(id) {
+  if (selectedShows.has(id)) selectedShows.delete(id);
+  else selectedShows.add(id);
+  buildShowPills();
+}
+
+function toggleAll() {
+  const all = [...SHOWS, ...customShows];
+  if (selectedShows.size === all.length) selectedShows.clear();
+  else all.forEach(s => selectedShows.add(s.id));
+  buildShowPills();
+}
+
+function addCustomShow() {
+  const input = document.getElementById('customShowInput');
+  const name = input.value.trim();
+  if (!name) return;
+  const id = 'custom_' + Date.now();
+  customShows.push({ id, label: '📺 ' + name, cls: 'pill-custom', showCls: 'show-custom', name });
+  selectedShows.add(id);
+  input.value = '';
+  buildShowPills();
+}
+
+document.getElementById('customShowInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addCustomShow();
+});
+
+function quickSearch(kw) {
+  document.getElementById('keywordInput').value = kw;
+  search();
+}
+
+function getShowName(id) {
+  const p = SHOWS.find(s => s.id === id);
+  if (p) return p.label.replace(/^\S+\s/, '');
+  const c = customShows.find(s => s.id === id);
+  return c ? c.name : id;
+}
+
+function getShowCls(id) {
+  const p = SHOWS.find(s => s.id === id);
+  return p ? p.showCls : 'show-custom';
+}
+
+async function search() {
+  const keyword = document.getElementById('keywordInput').value.trim();
+  if (!keyword) { document.getElementById('keywordInput').focus(); return; }
+  if (selectedShows.size === 0) { alert('Please select at least one show!'); return; }
+
+  const showNames = [...selectedShows].map(getShowName);
+  const resultsArea = document.getElementById('resultsArea');
+  const btn = document.getElementById('searchBtn');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Searching…';
+  resultsArea.innerHTML = `
+    <div class="loading-wrap">
+      <div class="loading-spinner">🔍</div>
+      <div class="loading-text">Finding episodes about "${keyword}"…</div>
+    </div>`;
+
+  try {
+    const response = await fetch('/api/search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword, shows: showNames }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Request failed');
+
+    const episodes = data.episodes;
+    btn.disabled = false;
+    btn.innerHTML = '🔎 Find Episodes';
+
+    if (!episodes || episodes.length === 0) {
+      resultsArea.innerHTML = `
+        <div class="no-results">
+          <div class="emoji">🤔</div>
+          <p>No episodes found for "${keyword}"</p>
+          <small>Try different words — like "animals" instead of "pets"</small>
+        </div>`;
+      return;
+    }
+
+    resultsArea.innerHTML = `
+      <div class="results-header">🎉 Found ${episodes.length} episode${episodes.length !== 1 ? 's' : ''} about <em style="color:#e67e00">"${keyword}"</em></div>
+      <div class="episodes-grid" id="epGrid"></div>`;
+
+    const grid = document.getElementById('epGrid');
+    episodes.forEach((ep, i) => {
+      const showId = [...selectedShows].find(id => getShowName(id).toLowerCase() === ep.show.toLowerCase()) || 'custom';
+      const cls = getShowCls(showId);
+      const meta = [ep.season ? `Season ${ep.season}` : null, ep.episode ? `Ep ${ep.episode}` : null].filter(Boolean).join(' · ');
+      const tags = (ep.themes || []).map(t => `<span class="ep-tag">${t}</span>`).join('');
+      const wrap = document.createElement('div');
+      wrap.className = cls;
+      wrap.style.animationDelay = (i * 0.07) + 's';
+      wrap.innerHTML = `
+        <div class="ep-card">
+          <div class="ep-show">${ep.show}</div>
+          <div class="ep-title">${ep.title}</div>
+          ${meta ? `<div class="ep-meta">${meta}</div>` : ''}
+          <div class="ep-desc">${ep.description}</div>
+          ${tags ? `<div class="ep-tags">${tags}</div>` : ''}
+        </div>`;
+      grid.appendChild(wrap);
+    });
+
+  } catch (err) {
+    btn.disabled = false;
+    btn.innerHTML = '🔎 Find Episodes';
+    resultsArea.innerHTML = `<div class="error-box">⚠️ ${err.message || 'Something went wrong. Please try again!'}</div>`;
+  }
+}
+
+buildShowPills();
+</script>
+</body>
+</html>
